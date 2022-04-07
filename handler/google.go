@@ -40,7 +40,7 @@ func AuthGoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	queryState := r.URL.Query().Get("state")
 	if queryState != cookieState.Value {
-		fmt.Printf("state does not match %s : %s", queryState, cookieState)
+		fmt.Printf("state does not match %s : %s", queryState, cookieState.Value)
 		return
 	}
 
