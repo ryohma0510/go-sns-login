@@ -11,13 +11,15 @@ import (
 )
 
 func AuthGoogleHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("aaaaa")
 	client := oidc.NewGoogleOidcClient()
 
 	state, err := oidc.RandomState()
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
+	cookie := http.Cookie{Name: "state", Value: state}
+	http.SetCookie(w, &cookie)
 
 	redirectUrl := client.AuthUrl(
 		"code",
@@ -30,11 +32,16 @@ func AuthGoogleHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func AuthGoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	cookieState, err := r.Cookie("state")
+	if err != nil {
+		fmt.Printf("Cookie get error %s", err)
+		return
+	}
+
 	queryState := r.URL.Query().Get("state")
-	sessionState := queryState // dummy
-	if queryState != sessionState {
-		fmt.Printf("state does not match %s : %s", queryState, sessionState)
-		panic("")
+	if queryState != cookieState.Value {
+		fmt.Printf("state does not match %s : %s", queryState, cookieState)
+		return
 	}
 
 	client := oidc.NewGoogleOidcClient()
