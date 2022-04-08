@@ -1,16 +1,18 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"net/http"
 	"os"
+	"sns-login/model"
 	"sns-login/oidc"
 	"strings"
 )
 
-func AuthGoogleHandler(w http.ResponseWriter, r *http.Request) {
+func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	client := oidc.NewGoogleOidcClient()
 
 	state, err := oidc.RandomState()
@@ -24,14 +26,19 @@ func AuthGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	redirectUrl := client.AuthUrl(
 		"code",
 		[]string{"openid", "email", "profile"},
-		fmt.Sprintf("%s:%s/auth/google/callback", os.Getenv("SERVER_HOST"), os.Getenv("SERVER_PORT")),
+		fmt.Sprintf(
+			"%s://%s:%s/auth/google/sign_up/callback",
+			os.Getenv("SERVER_PROTO"),
+			os.Getenv("SERVER_HOST"),
+			os.Getenv("SERVER_PORT"),
+		),
 		state,
 	)
 
 	http.Redirect(w, r, redirectUrl, 301)
 }
 
-func AuthGoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	cookieState, err := r.Cookie("state")
 	if err != nil {
 		fmt.Printf("Cookie get error %s", err)
@@ -47,7 +54,12 @@ func AuthGoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	client := oidc.NewGoogleOidcClient()
 	tokenResp, err := client.PostTokenEndpoint(
 		r.URL.Query().Get("code"),
-		fmt.Sprintf("%s:%s/auth/google/callback", os.Getenv("SERVER_HOST"), os.Getenv("SERVER_PORT")),
+		fmt.Sprintf(
+			"%s://%s:%s/auth/google/sign_up/callback",
+			os.Getenv("SERVER_PROTO"),
+			os.Getenv("SERVER_HOST"),
+			os.Getenv("SERVER_PORT"),
+		),
 		"authorization_code",
 	)
 	if err != nil {
@@ -69,5 +81,9 @@ func AuthGoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("Got sub: %s", googleIdToken.Sub)
+	user := model.User{Email: googleIdToken.Email, Sub: googleIdToken.Sub, IdProvider: googleIdToken.Iss}
+	if err = user.Create(db); err != nil {
+		fmt.Println(err)
+		return
+	}
 }
