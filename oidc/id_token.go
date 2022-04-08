@@ -14,6 +14,6 @@ type GoogleIdToken struct {
 	GivenName     string `json:"given_name"`
 	FamilyName    string `json:"family_name"`
 	Locale        string `json:"locale"`
-	Iat           int    `json:"iat"`
-	Exp           int    `json:"exp"`
+	Iat           int64  `json:"iat"`
+	Exp           int64  `json:"exp"`
 }

@@ -13,7 +13,7 @@ import (
 )
 
 type oidcClient struct {
-	idProvider    string
+	issuer        string
 	clientId      string
 	authEndpoint  string
 	tokenEndpoint string
@@ -29,7 +29,7 @@ type tokenResponse struct {
 
 func newOidcClient(idProvider string, clientId string, authEndpoint string, tokenEndpoint string) *oidcClient {
 	return &oidcClient{
-		idProvider:    idProvider,
+		issuer:        idProvider,
 		clientId:      clientId,
 		authEndpoint:  authEndpoint,
 		tokenEndpoint: tokenEndpoint,
@@ -38,7 +38,7 @@ func newOidcClient(idProvider string, clientId string, authEndpoint string, toke
 
 func NewGoogleOidcClient() *oidcClient {
 	return newOidcClient(
-		"Google",
+		"https://accounts.google.com",
 		os.Getenv("GOOGLE_CLIENT_ID"),
 		"https://accounts.google.com/o/oauth2/v2/auth",
 		"https://oauth2.googleapis.com/token")
@@ -100,8 +100,8 @@ func RandomState() (string, error) {
 // private
 
 func (c oidcClient) clientSecret() string {
-	switch c.idProvider {
-	case "Google":
+	switch c.issuer {
+	case "https://accounts.google.com":
 		return os.Getenv("GOOGLE_CLIENT_SECRET")
 	}
 
