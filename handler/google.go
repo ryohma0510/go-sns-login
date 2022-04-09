@@ -67,6 +67,8 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
+	// TODO: 署名の検証もやってみる
+
 	// id_tokenはトークンエンドポイントから受け取った直後でIdProviderから受け取っていることが保障されているので署名の検証をしない
 	base64EncPayload := strings.Split(tokenResp.IdToken, ".")[1]
 	bytePayload, err := jwt.DecodeSegment(base64EncPayload)
@@ -75,13 +77,18 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
-	googleIdToken := &oidc.GoogleIdToken{}
-	if err := json.Unmarshal(bytePayload, googleIdToken); err != nil {
+	payload := &oidc.GoogleIdTokenPayload{}
+	if err := json.Unmarshal(bytePayload, payload); err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	user := model.User{Email: googleIdToken.Email, Sub: googleIdToken.Sub, IdProvider: googleIdToken.Iss}
+	if err = client.ValidateIdTokenPayload(payload.Iss, payload.Aud, payload.Exp); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	user := model.User{Email: payload.Email, Sub: payload.Sub, IdProvider: payload.Iss}
 	if err = user.Create(db); err != nil {
 		fmt.Println(err)
 		return

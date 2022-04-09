@@ -1,6 +1,11 @@
 package oidc
 
-type GoogleIdToken struct {
+import (
+	"errors"
+	"time"
+)
+
+type GoogleIdTokenPayload struct {
 	Iss           string `json:"iss"`
 	Azp           string `json:"azp"`
 	Aud           string `json:"aud"`
@@ -16,4 +21,20 @@ type GoogleIdToken struct {
 	Locale        string `json:"locale"`
 	Iat           int64  `json:"iat"`
 	Exp           int64  `json:"exp"`
+}
+
+func (c oidcClient) ValidateIdTokenPayload(iss string, aud string, exp int64) error {
+	if c.issuer != iss {
+		return errors.New("token issuer mismatch")
+	}
+
+	if c.clientId != aud {
+		return errors.New("token audience mismatch")
+	}
+
+	if (time.Now().Unix() - exp) > 0 {
+		return errors.New("token expired")
+	}
+
+	return nil
 }
