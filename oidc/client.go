@@ -17,6 +17,7 @@ type oidcClient struct {
 	ClientId      string
 	authEndpoint  string
 	tokenEndpoint string
+	JwksEndpoint  string
 }
 
 type tokenResponse struct {
@@ -27,12 +28,13 @@ type tokenResponse struct {
 	IdToken     string `json:"id_token"`
 }
 
-func newOidcClient(idProvider string, clientId string, authEndpoint string, tokenEndpoint string) *oidcClient {
+func newOidcClient(idProvider string, clientId string, authEndpoint string, tokenEndpoint string, jwksEndpoint string) *oidcClient {
 	return &oidcClient{
 		idProvider:    idProvider,
 		ClientId:      clientId,
 		authEndpoint:  authEndpoint,
 		tokenEndpoint: tokenEndpoint,
+		JwksEndpoint:  jwksEndpoint,
 	}
 }
 
@@ -41,7 +43,9 @@ func NewGoogleOidcClient() *oidcClient {
 		"google",
 		os.Getenv("GOOGLE_CLIENT_ID"),
 		"https://accounts.google.com/o/oauth2/v2/auth",
-		"https://oauth2.googleapis.com/token")
+		"https://oauth2.googleapis.com/token",
+		"https://www.googleapis.com/oauth2/v3/certs",
+	)
 }
 
 func (c oidcClient) AuthUrl(respType string, scopes []string, redirectUrl string, state string) string {

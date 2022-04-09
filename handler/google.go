@@ -9,7 +9,6 @@ import (
 	"os"
 	"sns-login/model"
 	"sns-login/oidc"
-	"strings"
 )
 
 func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,18 +38,19 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	// state check
 	cookieState, err := r.Cookie("state")
 	if err != nil {
 		fmt.Printf("Cookie get error %s", err)
 		return
 	}
-
 	queryState := r.URL.Query().Get("state")
 	if queryState != cookieState.Value {
 		fmt.Printf("state does not match %s : %s", queryState, cookieState.Value)
 		return
 	}
 
+	// Get Tokens
 	client := oidc.NewGoogleOidcClient()
 	tokenResp, err := client.PostTokenEndpoint(
 		r.URL.Query().Get("code"),
@@ -67,22 +67,28 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
-	// TODO: 署名の検証もやってみる
-
-	// id_tokenはトークンエンドポイントから受け取った直後でIdProviderから受け取っていることが保障されているので署名の検証をしない
-	base64EncPayload := strings.Split(tokenResp.IdToken, ".")[1]
-	bytePayload, err := jwt.DecodeSegment(base64EncPayload)
+	// Validate id_token signature
+	idToken, err := oidc.NewIdToken(tokenResp.IdToken)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	if err := idToken.ValidateSignature(client.JwksEndpoint); err != nil {
+		fmt.Println(err)
+		return
+	}
 
+	// Validate payload
+	bytePayload, err := jwt.DecodeSegment(idToken.RawPayload)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	payload := &oidc.GoogleIdTokenPayload{}
 	if err := json.Unmarshal(bytePayload, payload); err != nil {
 		fmt.Println(err)
 		return
 	}
-
 	if err = payload.IsValid(client.ClientId); err != nil {
 		fmt.Println(err)
 		return
@@ -93,4 +99,5 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		fmt.Println(err)
 		return
 	}
+	fmt.Println("Success!")
 }
