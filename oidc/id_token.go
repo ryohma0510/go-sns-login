@@ -1,39 +1,113 @@
 package oidc
 
 import (
+	"crypto"
+	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
-	"time"
+	"fmt"
+	"github.com/dgrijalva/jwt-go"
+	"io/ioutil"
+	"math/big"
+	"net/http"
+	"strings"
 )
 
-type GoogleIdTokenPayload struct {
-	Iss           string `json:"iss"`
-	Azp           string `json:"azp"`
-	Aud           string `json:"aud"`
-	Sub           string `json:"sub"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
-	AtHash        string `json:"at_hash"`
-	Nonce         string `json:"nonce"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
-	GivenName     string `json:"given_name"`
-	FamilyName    string `json:"family_name"`
-	Locale        string `json:"locale"`
-	Iat           int64  `json:"iat"`
-	Exp           int64  `json:"exp"`
+type idToken struct {
+	rawToken     string
+	rawHeader    string
+	RawPayload   string
+	rawSignature string
+	header       header
 }
 
-func (c oidcClient) ValidateIdTokenPayload(iss string, aud string, exp int64) error {
-	if c.issuer != iss {
-		return errors.New("token issuer mismatch")
+type header struct {
+	Alg string `json:"alg"`
+	Kid string `json:"kid"`
+	Typ string `json:"typ"`
+}
+
+type jwks struct {
+	Keys []jwk `json:"keys"`
+}
+
+type jwk struct {
+	E   string `json:"e"`
+	Kty string `json:"kty"`
+	Kid string `json:"kid"`
+	Use string `json:"use"`
+	N   string `json:"n"`
+	Alg string `json:"alg"`
+}
+
+func NewIdToken(rawToken string) (*idToken, error) {
+	segments := strings.Split(rawToken, ".")
+	if len(segments) != 3 {
+		return nil, errors.New("invalid jwt")
+	}
+	idToken := &idToken{
+		rawToken:     rawToken,
+		rawHeader:    segments[0],
+		RawPayload:   segments[1],
+		rawSignature: segments[2],
 	}
 
-	if c.clientId != aud {
-		return errors.New("token audience mismatch")
+	byteHeader, err := jwt.DecodeSegment(idToken.rawHeader)
+	if err != nil {
+		return nil, errors.New("base64 decode header error")
+	}
+	header := &header{}
+	if err := json.Unmarshal(byteHeader, header); err != nil {
+		return nil, errors.New("json decode header error")
+	}
+	idToken.header = *header
+
+	return idToken, nil
+}
+
+func (token idToken) ValidateSignature(jwksUrl string) error {
+	resp, _ := http.Get(jwksUrl)
+	defer resp.Body.Close()
+	byteArray, _ := ioutil.ReadAll(resp.Body)
+	keys := &jwks{}
+	if err := json.Unmarshal(byteArray, keys); err != nil {
+		return err
 	}
 
-	if (time.Now().Unix() - exp) > 0 {
-		return errors.New("token expired")
+	var key jwk
+	var isFound bool
+	for _, v := range keys.Keys {
+		if token.header.Kid == v.Kid {
+			key = v
+			isFound = true
+		}
+	}
+	if !isFound {
+		return errors.New("JWK not found")
+	}
+
+	byteN, err := base64.RawURLEncoding.DecodeString(key.N)
+	if err != nil {
+		return err
+	}
+	pubKey := &rsa.PublicKey{
+		N: new(big.Int).SetBytes(byteN),
+		E: 65537, // TODO: key.E -> "AQAB"から導きたい
+	}
+
+	headerAndPayload := fmt.Sprintf("%s.%s", token.rawHeader, token.RawPayload)
+	hasher := sha256.New()
+	hasher.Write([]byte(headerAndPayload))
+
+	decSignature, err := base64.RawURLEncoding.DecodeString(token.rawSignature)
+	if err != nil {
+		return err
+	}
+
+	if err := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hasher.Sum(nil), decSignature); err != nil {
+		return err
 	}
 
 	return nil

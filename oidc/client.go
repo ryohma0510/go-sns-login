@@ -13,10 +13,11 @@ import (
 )
 
 type oidcClient struct {
-	issuer        string
-	clientId      string
+	idProvider    string
+	ClientId      string
 	authEndpoint  string
 	tokenEndpoint string
+	JwksEndpoint  string
 }
 
 type tokenResponse struct {
@@ -27,28 +28,31 @@ type tokenResponse struct {
 	IdToken     string `json:"id_token"`
 }
 
-func newOidcClient(idProvider string, clientId string, authEndpoint string, tokenEndpoint string) *oidcClient {
+func newOidcClient(idProvider string, clientId string, authEndpoint string, tokenEndpoint string, jwksEndpoint string) *oidcClient {
 	return &oidcClient{
-		issuer:        idProvider,
-		clientId:      clientId,
+		idProvider:    idProvider,
+		ClientId:      clientId,
 		authEndpoint:  authEndpoint,
 		tokenEndpoint: tokenEndpoint,
+		JwksEndpoint:  jwksEndpoint,
 	}
 }
 
 func NewGoogleOidcClient() *oidcClient {
 	return newOidcClient(
-		"https://accounts.google.com",
+		"google",
 		os.Getenv("GOOGLE_CLIENT_ID"),
 		"https://accounts.google.com/o/oauth2/v2/auth",
-		"https://oauth2.googleapis.com/token")
+		"https://oauth2.googleapis.com/token",
+		"https://www.googleapis.com/oauth2/v3/certs",
+	)
 }
 
 func (c oidcClient) AuthUrl(respType string, scopes []string, redirectUrl string, state string) string {
 	return fmt.Sprintf(
 		"%s?client_id=%s&response_type=%s&scope=%s&redirect_uri=%s&state=%s",
 		c.authEndpoint,
-		c.clientId,
+		c.ClientId,
 		respType,
 		strings.Join(scopes, "%20"),
 		redirectUrl,
@@ -59,7 +63,7 @@ func (c oidcClient) AuthUrl(respType string, scopes []string, redirectUrl string
 func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType string) (tokenResponse, error) {
 	values := url.Values{}
 	values.Add("code", code)
-	values.Add("client_id", c.clientId)
+	values.Add("client_id", c.ClientId)
 	values.Add("client_secret", c.clientSecret())
 	values.Add("redirect_uri", redirectUrl)
 	values.Add("grant_type", grantType)
@@ -100,8 +104,8 @@ func RandomState() (string, error) {
 // private
 
 func (c oidcClient) clientSecret() string {
-	switch c.issuer {
-	case "https://accounts.google.com":
+	switch c.idProvider {
+	case "google":
 		return os.Getenv("GOOGLE_CLIENT_SECRET")
 	}
 
