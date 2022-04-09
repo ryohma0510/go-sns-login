@@ -83,7 +83,7 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
-	if err = client.ValidateIdTokenPayload(payload.Iss, payload.Aud, payload.Exp); err != nil {
+	if err = payload.IsValid(client.ClientId); err != nil {
 		fmt.Println(err)
 		return
 	}
