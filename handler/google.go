@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"gorm.io/gorm"
 	"net/http"
 	"os"
 	"sns-login/model"
@@ -37,7 +37,7 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectUrl, 301)
 }
 
-func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	// state check
 	cookieState, err := r.Cookie("state")
 	if err != nil {
@@ -94,10 +94,7 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
-	user := model.User{Email: payload.Email, Sub: payload.Sub, IdProvider: payload.Iss}
-	if err = user.Create(db); err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println("Success!")
+	user := &model.User{Email: payload.Email, Sub: payload.Sub, IdProvider: payload.Iss}
+	db.Create(user)
+	fmt.Printf("success to create user :%v", user)
 }

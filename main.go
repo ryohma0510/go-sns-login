@@ -1,11 +1,11 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
-	_ "github.com/mattn/go-sqlite3"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"net/http"
 	"os"
 	"sns-login/handler"
@@ -15,12 +15,15 @@ import (
 func main() {
 	loadEnv()
 
-	db, err := sql.Open("sqlite3", "./database.db")
+	db, err := gorm.Open(sqlite.Open("./database.db"), &gorm.Config{})
 	if err != nil {
 		fmt.Printf("DB Connection error: %s", err)
 		return
 	}
-	initDb(db)
+	if err := initDb(db); err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", handler.IndexHandler)
@@ -46,9 +49,10 @@ func loadEnv() {
 	}
 }
 
-func initDb(db *sql.DB) {
-	if err := model.CreateUserTable(db); err != nil {
-		fmt.Println(err)
-		return
+func initDb(db *gorm.DB) error {
+	if err := db.AutoMigrate(&model.User{}); err != nil {
+		return err
 	}
+
+	return nil
 }
