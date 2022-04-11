@@ -68,7 +68,10 @@ func NewIdToken(rawToken string) (*idToken, error) {
 }
 
 func (token idToken) ValidateSignature(jwksUrl string) error {
-	resp, _ := http.Get(jwksUrl)
+	resp, err := http.Get(jwksUrl)
+	if err != nil {
+		return err
+	}
 	defer resp.Body.Close()
 	byteArray, _ := ioutil.ReadAll(resp.Body)
 	keys := &jwks{}
