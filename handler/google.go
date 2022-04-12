@@ -14,6 +14,7 @@ import (
 func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	client := oidc.NewGoogleOidcClient()
 
+	// CSRFを防ぐためにstateを保存し、後の処理でstateが一致するか確認する
 	state, err := oidc.RandomState()
 	if err != nil {
 		fmt.Println(err)
@@ -22,6 +23,7 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{Name: "state", Value: state}
 	http.SetCookie(w, &cookie)
 
+	// ユーザーをGoogleのログイン画面にリダイレクト
 	redirectUrl := client.AuthUrl(
 		"code",
 		[]string{"openid", "email", "profile"},
@@ -33,12 +35,11 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 		),
 		state,
 	)
-
 	http.Redirect(w, r, redirectUrl, 301)
 }
 
 func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
-	// state check
+	// 認可リクエストを送る前に設定したstateと一致するかを確認してCSRF攻撃を防ぐ
 	cookieState, err := r.Cookie("state")
 	if err != nil {
 		fmt.Printf("Cookie get error %s", err)
@@ -50,7 +51,7 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
-	// Get Tokens
+	// 認可コードを取り出しトークンエンドポイントに投げることでid_tokenを取得できる
 	client := oidc.NewGoogleOidcClient()
 	tokenResp, err := client.PostTokenEndpoint(
 		r.URL.Query().Get("code"),
@@ -67,7 +68,7 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
-	// Validate id_token signature
+	// JWKsエンドポイントから公開鍵を取得しid_token(JWT)の署名を検証。改竄されていないことを確認する
 	idToken, err := oidc.NewIdToken(tokenResp.IdToken)
 	if err != nil {
 		fmt.Println(err)
@@ -78,7 +79,7 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
-	// Validate payload
+	// id_tokenのpayload部分をチェックし、期限切れなどしていないか確認する
 	bytePayload, err := jwt.DecodeSegment(idToken.RawPayload)
 	if err != nil {
 		fmt.Println(err)

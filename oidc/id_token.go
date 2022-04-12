@@ -42,6 +42,7 @@ type jwk struct {
 	Alg string `json:"alg"`
 }
 
+// NewIdToken はJWTから構造体返す。セグメントが分割できるかのみチェックしている
 func NewIdToken(rawToken string) (*idToken, error) {
 	segments := strings.Split(rawToken, ".")
 	if len(segments) != 3 {

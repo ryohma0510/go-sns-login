@@ -1,3 +1,4 @@
+// Package oidc はOpenIDConnectで共通の実装を管理します
 package oidc
 
 import (
@@ -20,6 +21,7 @@ type oidcClient struct {
 	JwksEndpoint  string
 }
 
+// tokenResponse はトークンエンドポイントのレスポンスをunmarshalするため構造体
 type tokenResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
@@ -38,6 +40,7 @@ func newOidcClient(idProvider string, clientId string, authEndpoint string, toke
 	}
 }
 
+// NewGoogleOidcClient はGoogleのクライアントを返す
 func NewGoogleOidcClient() *oidcClient {
 	return newOidcClient(
 		"google",
@@ -48,6 +51,7 @@ func NewGoogleOidcClient() *oidcClient {
 	)
 }
 
+// AuthUrl は認可エンドポイントのURLを返す
 func (c oidcClient) AuthUrl(respType string, scopes []string, redirectUrl string, state string) string {
 	return fmt.Sprintf(
 		"%s?client_id=%s&response_type=%s&scope=%s&redirect_uri=%s&state=%s",
@@ -60,6 +64,7 @@ func (c oidcClient) AuthUrl(respType string, scopes []string, redirectUrl string
 	)
 }
 
+// PostTokenEndpoint はトークンエンドポイントに認可コードを渡してトークンを得る
 func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType string) (tokenResponse, error) {
 	values := url.Values{}
 	values.Add("code", code)
@@ -83,6 +88,7 @@ func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType
 	return *tokenResp, nil
 }
 
+// RandomState はCSRF攻撃の対策に使うためにランダムな文字列を返す。
 func RandomState() (string, error) {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -103,6 +109,7 @@ func RandomState() (string, error) {
 
 // private
 
+// clientSecret は環境変数に登録されたシークレットを取り出す
 func (c oidcClient) clientSecret() string {
 	switch c.idProvider {
 	case "google":

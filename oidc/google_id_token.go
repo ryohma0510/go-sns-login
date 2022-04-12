@@ -5,10 +5,13 @@ import (
 	"time"
 )
 
+// GoogleIdTokenPayload はトークンエンドポイントのレスポンスの中のid_tokenのpayloadをunmarshalするための構造体
 type GoogleIdTokenPayload struct {
-	Iss           string `json:"iss"`
-	Azp           string `json:"azp"`
-	Aud           string `json:"aud"`
+	Iss string `json:"iss"`
+	Azp string `json:"azp"`
+	// クライアントID
+	Aud string `json:"aud"`
+	// ID Provider内でのID。メアドではなくこちらがユーザー識別子となる
 	Sub           string `json:"sub"`
 	Email         string `json:"email"`
 	EmailVerified bool   `json:"email_verified"`
@@ -23,6 +26,7 @@ type GoogleIdTokenPayload struct {
 	Exp           int64  `json:"exp"`
 }
 
+// IsValid はpayloadの中身を検証
 func (payload GoogleIdTokenPayload) IsValid(clientId string) error {
 	if err := payload.isValidIss(); err != nil {
 		return err

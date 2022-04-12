@@ -27,7 +27,9 @@ func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", handler.IndexHandler)
+	// ユーザーをGoogleのログイン画面にリダイレクトする
 	router.HandleFunc("/auth/google/sign_up", handler.AuthGoogleSignUpHandler)
+	// Googleのログイン画面からリダイレクトされ戻ってくるときのエンドポイント
 	router.HandleFunc("/auth/google/sign_up/callback", func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthGoogleSignUpCallbackHandler(w, r, db)
 	}).Methods("GET")
@@ -41,6 +43,7 @@ func main() {
 	}
 }
 
+// client_idは知られても問題ないが、client_secretは秘匿する必要がある
 func loadEnv() {
 	err := godotenv.Load(".env")
 
