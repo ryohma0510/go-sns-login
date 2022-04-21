@@ -1,4 +1,4 @@
-package handler
+package controllers
 
 import (
 	"encoding/json"
@@ -7,17 +7,33 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"os"
-	"sns-login/model"
-	"sns-login/oidc"
+	"sns-login/adapter/gateway"
+	"sns-login/adapter/oidc"
+	"sns-login/domain"
+	"sns-login/usecase"
+	"sns-login/usecase/interfaces"
 )
 
-func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
+type GoogleSignUpController struct {
+	Interactor usecase.UserInteractor
+}
+
+func NewGoogleSignUpController(db *gorm.DB, logger interfaces.Logger) *GoogleSignUpController {
+	return &GoogleSignUpController{
+		Interactor: usecase.UserInteractor{
+			UserRepository: &gateway.UserRepository{Db: db},
+			Logger:         logger,
+		},
+	}
+}
+
+func (controller *GoogleSignUpController) AuthGoogleSignUp(w http.ResponseWriter, r *http.Request) {
 	client := oidc.NewGoogleOidcClient()
 
 	// CSRFを防ぐためにstateを保存し、後の処理でstateが一致するか確認する
 	state, err := oidc.RandomState()
 	if err != nil {
-		fmt.Println(err)
+		controller.Interactor.Logger.Log(err)
 		return
 	}
 	cookie := http.Cookie{Name: "state", Value: state}
@@ -38,16 +54,17 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectUrl, 301)
 }
 
-func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
+func (controller *GoogleSignUpController) AuthGoogleSignUpCallback(w http.ResponseWriter, r *http.Request) {
 	// 認可リクエストを送る前に設定したstateと一致するかを確認してCSRF攻撃を防ぐ
 	cookieState, err := r.Cookie("state")
 	if err != nil {
-		fmt.Printf("Cookie get error %s", err)
+		controller.Interactor.Logger.Log(err)
 		return
 	}
 	queryState := r.URL.Query().Get("state")
 	if queryState != cookieState.Value {
-		fmt.Printf("state does not match %s : %s", queryState, cookieState.Value)
+		err = fmt.Errorf("state does not match %s : %s", queryState, cookieState.Value)
+		controller.Interactor.Logger.Log(err)
 		return
 	}
 
@@ -64,38 +81,44 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		"authorization_code",
 	)
 	if err != nil {
-		fmt.Println(err)
+		controller.Interactor.Logger.Log(err)
 		return
 	}
 
 	// JWKsエンドポイントから公開鍵を取得しid_token(JWT)の署名を検証。改竄されていないことを確認する
 	idToken, err := oidc.NewIdToken(tokenResp.IdToken)
 	if err != nil {
-		fmt.Println(err)
+		controller.Interactor.Logger.Log(err)
 		return
 	}
 	if err := idToken.ValidateSignature(client.JwksEndpoint); err != nil {
-		fmt.Println(err)
+		controller.Interactor.Logger.Log(err)
 		return
 	}
 
 	// id_tokenのpayload部分をチェックし、期限切れなどしていないか確認する
 	bytePayload, err := jwt.DecodeSegment(idToken.RawPayload)
 	if err != nil {
-		fmt.Println(err)
+		controller.Interactor.Logger.Log(err)
 		return
 	}
 	payload := &oidc.GoogleIdTokenPayload{}
 	if err := json.Unmarshal(bytePayload, payload); err != nil {
-		fmt.Println(err)
+		controller.Interactor.Logger.Log(err)
 		return
 	}
 	if err = payload.IsValid(client.ClientId); err != nil {
-		fmt.Println(err)
+		controller.Interactor.Logger.Log(err)
 		return
 	}
 
-	user := &model.User{Email: payload.Email, Sub: payload.Sub, IdProvider: payload.Iss}
-	db.Create(user)
-	fmt.Printf("success to create user :%v", user)
+	user := domain.User{
+		Email:      payload.Email,
+		Sub:        payload.Sub,
+		IdProvider: payload.Iss,
+	}
+	if _, err := controller.Interactor.SignUp(user); err != nil {
+		controller.Interactor.Logger.Log(err)
+		return
+	}
 }

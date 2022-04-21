@@ -1,11 +1,6 @@
-package model
-
-import (
-	"gorm.io/gorm"
-)
+package domain
 
 type User struct {
-	gorm.Model
 	Id         int64
 	Email      string
 	Sub        string

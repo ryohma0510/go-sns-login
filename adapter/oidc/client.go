@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-type oidcClient struct {
+type Client struct {
 	idProvider    string
 	ClientId      string
 	authEndpoint  string
@@ -30,8 +30,8 @@ type tokenResponse struct {
 	IdToken     string `json:"id_token"`
 }
 
-func newOidcClient(idProvider string, clientId string, authEndpoint string, tokenEndpoint string, jwksEndpoint string) *oidcClient {
-	return &oidcClient{
+func newOidcClient(idProvider string, clientId string, authEndpoint string, tokenEndpoint string, jwksEndpoint string) *Client {
+	return &Client{
 		idProvider:    idProvider,
 		ClientId:      clientId,
 		authEndpoint:  authEndpoint,
@@ -41,7 +41,7 @@ func newOidcClient(idProvider string, clientId string, authEndpoint string, toke
 }
 
 // NewGoogleOidcClient はGoogleのクライアントを返す
-func NewGoogleOidcClient() *oidcClient {
+func NewGoogleOidcClient() *Client {
 	return newOidcClient(
 		"google",
 		os.Getenv("GOOGLE_CLIENT_ID"),
@@ -52,7 +52,7 @@ func NewGoogleOidcClient() *oidcClient {
 }
 
 // AuthUrl は認可エンドポイントのURLを返す
-func (c oidcClient) AuthUrl(respType string, scopes []string, redirectUrl string, state string) string {
+func (c Client) AuthUrl(respType string, scopes []string, redirectUrl string, state string) string {
 	return fmt.Sprintf(
 		"%s?client_id=%s&response_type=%s&scope=%s&redirect_uri=%s&state=%s",
 		c.authEndpoint,
@@ -65,7 +65,7 @@ func (c oidcClient) AuthUrl(respType string, scopes []string, redirectUrl string
 }
 
 // PostTokenEndpoint はトークンエンドポイントに認可コードを渡してトークンを得る
-func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType string) (tokenResponse, error) {
+func (c Client) PostTokenEndpoint(code string, redirectUrl string, grantType string) (tokenResponse, error) {
 	values := url.Values{}
 	values.Add("code", code)
 	values.Add("client_id", c.ClientId)
@@ -110,7 +110,7 @@ func RandomState() (string, error) {
 // private
 
 // clientSecret は環境変数に登録されたシークレットを取り出す
-func (c oidcClient) clientSecret() string {
+func (c Client) clientSecret() string {
 	switch c.idProvider {
 	case "google":
 		return os.Getenv("GOOGLE_CLIENT_SECRET")

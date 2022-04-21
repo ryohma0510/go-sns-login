@@ -8,7 +8,7 @@ import (
 func TestOidcClient_AuthUrl(t *testing.T) {
 	patterns := []struct {
 		desc        string
-		client      *oidcClient
+		client      *Client
 		respType    string
 		scopes      []string
 		redirectUrl string
