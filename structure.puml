@@ -1,0 +1,64 @@
+@startuml
+
+package external {
+    entity Logger {
+        Log(args ...interface{})
+    }
+}
+
+package adapter {
+    package gateway {
+        entity UserRepository {
+            Db *gorm.DB
+            Create(du domain.User) (int, error)
+        }
+    }
+
+    package controllers {
+        entity GoogleSignUpController {
+            Interactor usecase.UserInteractor
+            AuthGoogleSignUp()
+            AuthGoogleSignUpCallback()
+        }
+    }
+
+    package oidc {}
+}
+
+package usecase {
+    package interfaces {
+        interface ILogger {
+                Log(args ...interface{})
+            }
+
+        interface IUserRepository {
+            Create(domain.User) (int, error)
+        }
+    }
+
+    entity UserInteractor {
+        IUserRepository
+        ILogger
+        SignUp(u domain.User) (int, error)
+    }
+}
+
+package domain {
+    entity user {
+        Id
+        Email
+        Sub
+        IdProvider
+    }
+}
+
+
+UserRepository ..|> IUserRepository
+GoogleSignUpController --o UserInteractor
+oidc <- GoogleSignUpController
+
+UserInteractor o-- ILogger
+UserInteractor o-- IUserRepository
+
+
+@enduml
