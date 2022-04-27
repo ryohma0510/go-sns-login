@@ -8,11 +8,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	"io/ioutil"
 	"math/big"
 	"net/http"
 	"strings"
+
+	"github.com/dgrijalva/jwt-go"
+)
+
+var (
+	ErrIssMismatch    = errors.New("id_token issuer invalid")
+	ErrAudMismatch    = errors.New("id_token audience mismatch")
+	ErrIdTokenExpired = errors.New("id_token expired")
 )
 
 type idToken struct {
