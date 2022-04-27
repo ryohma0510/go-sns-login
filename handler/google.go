@@ -3,12 +3,13 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"gorm.io/gorm"
 	"net/http"
 	"os"
 	"sns-login/model"
 	"sns-login/oidc"
+
+	"github.com/dgrijalva/jwt-go"
+	"gorm.io/gorm"
 )
 
 func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +96,12 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
-	user := &model.User{Email: payload.Email, Sub: payload.Sub, IdProvider: payload.Iss}
+	idProvider, err := oidc.IssToIdProvider(payload.Iss)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	user := &model.User{Email: payload.Email, Sub: payload.Sub, IdProvider: idProvider}
 	db.Create(user)
 	fmt.Printf("success to create user :%v", user)
 }

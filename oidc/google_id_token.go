@@ -44,8 +44,7 @@ func (payload GoogleIdTokenPayload) IsValid(clientId string) error {
 
 func (payload GoogleIdTokenPayload) isValidIss() error {
 	isValid := false
-	validIssuers := [2]string{"https://accounts.google.com", "accounts.google.com"}
-	for _, v := range validIssuers {
+	for _, v := range GoogleIssuers {
 		if payload.Iss == v {
 			isValid = true
 		}

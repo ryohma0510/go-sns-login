@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
+	"sns-login/model"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
@@ -48,6 +49,10 @@ type jwk struct {
 	N   string `json:"n"`
 	Alg string `json:"alg"`
 }
+
+var (
+	GoogleIssuers = [2]string{"https://accounts.google.com", "accounts.google.com"}
+)
 
 // NewIdToken はJWTから構造体返す。セグメントが分割できるかのみチェックしている
 func NewIdToken(rawToken string) (*idToken, error) {
@@ -122,4 +127,15 @@ func (token idToken) ValidateSignature(jwksUrl string) error {
 	}
 
 	return nil
+}
+
+func IssToIdProvider(iss string) (model.IdProvider, error) {
+	googleIdTokenPayload := GoogleIdTokenPayload{
+		Iss: iss,
+	}
+	if err := googleIdTokenPayload.isValidIss(); err == nil {
+		return model.Google, nil
+	}
+
+	return 0, ErrIssMismatch
 }
