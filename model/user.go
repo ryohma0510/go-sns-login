@@ -4,6 +4,7 @@ import (
 	"gorm.io/gorm"
 )
 
+//go:generate stringer -type=IdProvider
 type IdProvider int
 
 const (
