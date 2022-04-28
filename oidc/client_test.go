@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"fmt"
 	"github.com/jarcoal/httpmock"
 	"testing"
 )
@@ -84,5 +85,14 @@ func TestOidcClient_PostTokenEndpoint(t *testing.T) {
 func TestRandomState(t *testing.T) {
 	if _, err := RandomState(); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestClientSecret(t *testing.T) {
+	c := oidcClient{clientSecret: clientSecret("super-secret-value")}
+
+	outputValue := fmt.Sprint(c.clientSecret)
+	if outputValue != "xxxxxoidc-client-secretxxxxx" {
+		t.Errorf("secret value output")
 	}
 }
