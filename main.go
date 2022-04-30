@@ -9,19 +9,23 @@ import (
 	"net/http"
 	"os"
 	"sns-login/handler"
+	"sns-login/logger"
 	"sns-login/model"
 )
 
 func main() {
-	loadEnv()
+	l := logger.New(false)
+	if err := loadEnv(); err != nil {
+		l.Logger.Error().Err(err)
+	}
 
 	db, err := gorm.Open(sqlite.Open("./database.db"), &gorm.Config{})
 	if err != nil {
-		fmt.Printf("DB Connection error: %s", err)
+		l.Logger.Error().Err(err)
 		return
 	}
 	if err := initDb(db); err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 		return
 	}
 
@@ -39,17 +43,19 @@ func main() {
 		Addr:    fmt.Sprintf("%s:%s", os.Getenv("SERVER_HOST"), os.Getenv("SERVER_PORT")),
 	}
 	if err := server.ListenAndServe(); err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 	}
 }
 
 // client_idは知られても問題ないが、client_secretは秘匿する必要がある
-func loadEnv() {
+func loadEnv() error {
 	err := godotenv.Load(".env")
 
 	if err != nil {
-		fmt.Printf("読み込み出来ませんでした: %v", err)
+		return err
 	}
+
+	return nil
 }
 
 func initDb(db *gorm.DB) error {

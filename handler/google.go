@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sns-login/logger"
 	"sns-login/model"
 	"sns-login/oidc"
 
@@ -13,12 +14,13 @@ import (
 )
 
 func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
+	l := logger.New(false)
 	client := oidc.NewGoogleOidcClient()
 
 	// CSRFを防ぐためにstateを保存し、後の処理でstateが一致するか確認する
 	state, err := oidc.RandomState()
 	if err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 		return
 	}
 	cookie := http.Cookie{Name: "state", Value: state}
@@ -40,15 +42,18 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
+	l := logger.New(false)
+
 	// 認可リクエストを送る前に設定したstateと一致するかを確認してCSRF攻撃を防ぐ
 	cookieState, err := r.Cookie("state")
 	if err != nil {
-		fmt.Printf("Cookie get error %s", err)
+		l.Logger.Error().Err(err)
 		return
 	}
 	queryState := r.URL.Query().Get("state")
 	if queryState != cookieState.Value {
-		fmt.Printf("state does not match %s : %s", queryState, cookieState.Value)
+		err = fmt.Errorf("state parameter does not match for query: %s, cookie: %s", queryState, cookieState)
+		l.Logger.Error().Err(err)
 		return
 	}
 
@@ -65,43 +70,43 @@ func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db 
 		"authorization_code",
 	)
 	if err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 		return
 	}
 
 	// JWKsエンドポイントから公開鍵を取得しid_token(JWT)の署名を検証。改竄されていないことを確認する
 	idToken, err := oidc.NewIdToken(tokenResp.IdToken)
 	if err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 		return
 	}
 	if err := idToken.ValidateSignature(client.JwksEndpoint); err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 		return
 	}
 
 	// id_tokenのpayload部分をチェックし、期限切れなどしていないか確認する
 	bytePayload, err := jwt.DecodeSegment(idToken.RawPayload)
 	if err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 		return
 	}
 	payload := &oidc.GoogleIdTokenPayload{}
 	if err := json.Unmarshal(bytePayload, payload); err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 		return
 	}
 	if err = payload.IsValid(client.ClientId); err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 		return
 	}
 
 	idProvider, err := oidc.IssToIdProvider(payload.Iss)
 	if err != nil {
-		fmt.Println(err)
+		l.Logger.Error().Err(err)
 		return
 	}
 	user := &model.User{Email: payload.Email, Sub: payload.Sub, IdProvider: idProvider}
 	db.Create(user)
-	fmt.Printf("success to create user :%v", user)
+	l.Logger.Info().Msg("success to create user")
 }
