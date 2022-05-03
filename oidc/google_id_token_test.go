@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 	"time"
@@ -61,8 +62,6 @@ func TestGoogleIdTokenPayload_IsValid(t *testing.T) {
 		err := payload.IsValid(pattern.clientId)
 		actual := err == nil
 
-		if pattern.expected != actual {
-			t.Errorf("pattern %s: want %t, actual %t", pattern.desc, pattern.expected, actual)
-		}
+		assert.Equal(t, pattern.expected, actual)
 	}
 }

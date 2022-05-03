@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"github.com/jarcoal/httpmock"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -35,16 +36,14 @@ func TestOidcClient_AuthUrl(t *testing.T) {
 		},
 	}
 
-	for idx, pattern := range patterns {
+	for _, pattern := range patterns {
 		actual := pattern.client.AuthUrl(
 			pattern.respType,
 			pattern.scopes,
 			pattern.redirectUrl,
 			pattern.state,
 		)
-		if pattern.expected != actual {
-			t.Errorf("pattern %d: want %s, actual %s", idx, pattern.expected, actual)
-		}
+		assert.Equal(t, pattern.expected, actual)
 	}
 }
 
@@ -76,13 +75,10 @@ func TestOidcClient_PostTokenEndpoint(t *testing.T) {
 		IdToken:     "DummyIdToken",
 	}
 
-	if actual != expected {
-		t.Errorf("want %v, actual %v", expected, actual)
-	}
+	assert.Equal(t, expected, actual)
 }
 
 func TestRandomState(t *testing.T) {
-	if _, err := RandomState(); err != nil {
-		t.Error(err)
-	}
+	_, err := RandomState()
+	assert.Nil(t, err)
 }

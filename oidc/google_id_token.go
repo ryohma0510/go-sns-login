@@ -1,7 +1,6 @@
 package oidc
 
 import (
-	"errors"
 	"time"
 )
 
@@ -45,8 +44,7 @@ func (payload GoogleIdTokenPayload) IsValid(clientId string) error {
 
 func (payload GoogleIdTokenPayload) isValidIss() error {
 	isValid := false
-	validIssuers := [2]string{"https://accounts.google.com", "accounts.google.com"}
-	for _, v := range validIssuers {
+	for _, v := range GoogleIssuers {
 		if payload.Iss == v {
 			isValid = true
 		}
@@ -55,13 +53,13 @@ func (payload GoogleIdTokenPayload) isValidIss() error {
 	if isValid {
 		return nil
 	} else {
-		return errors.New("id_token issuer invalid")
+		return ErrIssMismatch
 	}
 }
 
 func (payload GoogleIdTokenPayload) isValidAud(clientId string) error {
 	if payload.Aud != clientId {
-		return errors.New("id_token audience mismatch")
+		return ErrAudMismatch
 	}
 
 	return nil
@@ -69,7 +67,7 @@ func (payload GoogleIdTokenPayload) isValidAud(clientId string) error {
 
 func (payload GoogleIdTokenPayload) isValidExp() error {
 	if (time.Now().Unix() - payload.Exp) > 0 {
-		return errors.New("id_token expired")
+		return ErrIdTokenExpired
 	}
 
 	return nil

@@ -16,6 +16,7 @@ import (
 type oidcClient struct {
 	idProvider    string
 	ClientId      string
+	clientSecret  clientSecret
 	authEndpoint  string
 	tokenEndpoint string
 	JwksEndpoint  string
@@ -30,10 +31,11 @@ type tokenResponse struct {
 	IdToken     string `json:"id_token"`
 }
 
-func newOidcClient(idProvider string, clientId string, authEndpoint string, tokenEndpoint string, jwksEndpoint string) *oidcClient {
+func newOidcClient(idProvider string, clientId string, clientSecret clientSecret, authEndpoint string, tokenEndpoint string, jwksEndpoint string) *oidcClient {
 	return &oidcClient{
 		idProvider:    idProvider,
 		ClientId:      clientId,
+		clientSecret:  clientSecret,
 		authEndpoint:  authEndpoint,
 		tokenEndpoint: tokenEndpoint,
 		JwksEndpoint:  jwksEndpoint,
@@ -45,6 +47,7 @@ func NewGoogleOidcClient() *oidcClient {
 	return newOidcClient(
 		"google",
 		os.Getenv("GOOGLE_CLIENT_ID"),
+		clientSecret(os.Getenv("GOOGLE_CLIENT_SECRET")),
 		"https://accounts.google.com/o/oauth2/v2/auth",
 		"https://oauth2.googleapis.com/token",
 		"https://www.googleapis.com/oauth2/v3/certs",
@@ -69,7 +72,7 @@ func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType
 	values := url.Values{}
 	values.Add("code", code)
 	values.Add("client_id", c.ClientId)
-	values.Add("client_secret", c.clientSecret())
+	values.Add("client_secret", string(c.clientSecret))
 	values.Add("redirect_uri", redirectUrl)
 	values.Add("grant_type", grantType)
 
@@ -105,16 +108,4 @@ func RandomState() (string, error) {
 		result += string(letters[int(v)%len(letters)])
 	}
 	return result, nil
-}
-
-// private
-
-// clientSecret は環境変数に登録されたシークレットを取り出す
-func (c oidcClient) clientSecret() string {
-	switch c.idProvider {
-	case "google":
-		return os.Getenv("GOOGLE_CLIENT_SECRET")
-	}
-
-	return ""
 }

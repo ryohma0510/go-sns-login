@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"encoding/base64"
+	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
 )
@@ -42,16 +43,11 @@ func TestNewIdToken(t *testing.T) {
 		b64Token := strings.Join([]string{b64Header, b64Payload, b64Sig}, ".")
 
 		_, err := NewIdToken(b64Token)
-		isActualValid := err == nil
 
-		if pattern.isExpectValid != isActualValid {
-			t.Errorf(
-				"pattern %s: want %t, actual %t, err: %s",
-				pattern.desc,
-				pattern.isExpectValid,
-				isActualValid,
-				err,
-			)
+		if pattern.isExpectValid {
+			assert.Nil(t, err)
+		} else {
+			assert.Error(t, err)
 		}
 	}
 }
