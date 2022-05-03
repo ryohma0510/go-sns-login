@@ -13,8 +13,6 @@ import (
 	"strings"
 )
 
-type clientSecret string
-
 type oidcClient struct {
 	idProvider    string
 	ClientId      string
@@ -110,12 +108,4 @@ func RandomState() (string, error) {
 		result += string(letters[int(v)%len(letters)])
 	}
 	return result, nil
-}
-
-func (s clientSecret) String() string {
-	return "xxxxxoidc-client-secretxxxxx"
-}
-
-func (s clientSecret) GoString() string {
-	return "xxxxxoidc-client-secretxxxxx"
 }
