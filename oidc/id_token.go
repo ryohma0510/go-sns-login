@@ -89,7 +89,7 @@ func (token idToken) ValidateSignature(jwksUrl string) error {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-
+			panic(err)
 		}
 	}(resp.Body)
 	byteArray, _ := ioutil.ReadAll(resp.Body)
