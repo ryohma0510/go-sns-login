@@ -41,7 +41,7 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectUrl, 301)
 }
 
-func AuthGoogleSignUpCallbackHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
+func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	l := logger.New(false)
 
 	// 認可リクエストを送る前に設定したstateと一致するかを確認してCSRF攻撃を防ぐ

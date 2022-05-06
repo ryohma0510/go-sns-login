@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -85,7 +86,12 @@ func (token idToken) ValidateSignature(jwksUrl string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	byteArray, _ := ioutil.ReadAll(resp.Body)
 	keys := &jwks{}
 	if err := json.Unmarshal(byteArray, keys); err != nil {
@@ -114,15 +120,15 @@ func (token idToken) ValidateSignature(jwksUrl string) error {
 	}
 
 	headerAndPayload := fmt.Sprintf("%s.%s", token.rawHeader, token.RawPayload)
-	hasher := sha256.New()
-	hasher.Write([]byte(headerAndPayload))
+	sha := sha256.New()
+	sha.Write([]byte(headerAndPayload))
 
 	decSignature, err := base64.RawURLEncoding.DecodeString(token.rawSignature)
 	if err != nil {
 		return err
 	}
 
-	if err := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hasher.Sum(nil), decSignature); err != nil {
+	if err := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, sha.Sum(nil), decSignature); err != nil {
 		return err
 	}
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -80,7 +81,12 @@ func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType
 	if err != nil {
 		return tokenResponse{}, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(resp.Body)
 	bRespBody, _ := ioutil.ReadAll(resp.Body)
 
 	tokenResp := &tokenResponse{}
@@ -98,7 +104,7 @@ func RandomState() (string, error) {
 	// 乱数を生成
 	b := make([]byte, 10)
 	if _, err := rand.Read(b); err != nil {
-		return "", errors.New("unexpected error...")
+		return "", errors.New("unexpected error")
 	}
 
 	// letters からランダムに取り出して文字列を生成
