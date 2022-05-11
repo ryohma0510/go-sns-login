@@ -44,7 +44,7 @@ func (payload GoogleIdTokenPayload) IsValid(clientId string) error {
 
 func (payload GoogleIdTokenPayload) isValidIss() error {
 	isValid := false
-	for _, v := range GoogleIssuers {
+	for _, v := range googleIssuers {
 		if payload.Iss == v {
 			isValid = true
 		}
@@ -53,13 +53,13 @@ func (payload GoogleIdTokenPayload) isValidIss() error {
 	if isValid {
 		return nil
 	} else {
-		return ErrIssMismatch
+		return errIssMismatch
 	}
 }
 
 func (payload GoogleIdTokenPayload) isValidAud(clientId string) error {
 	if payload.Aud != clientId {
-		return ErrAudMismatch
+		return errAudMismatch
 	}
 
 	return nil
@@ -67,7 +67,7 @@ func (payload GoogleIdTokenPayload) isValidAud(clientId string) error {
 
 func (payload GoogleIdTokenPayload) isValidExp() error {
 	if (time.Now().Unix() - payload.Exp) > 0 {
-		return ErrIdTokenExpired
+		return errIdTokenExpired
 	}
 
 	return nil

@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	ErrIssMismatch    = errors.New("id_token issuer invalid")
-	ErrAudMismatch    = errors.New("id_token audience mismatch")
-	ErrIdTokenExpired = errors.New("id_token expired")
+	errIssMismatch    = errors.New("id_token issuer invalid")
+	errAudMismatch    = errors.New("id_token audience mismatch")
+	errIdTokenExpired = errors.New("id_token expired")
 )
 
 type idToken struct {
@@ -52,7 +52,7 @@ type jwk struct {
 }
 
 var (
-	GoogleIssuers = [2]string{"https://accounts.google.com", "accounts.google.com"}
+	googleIssuers = [2]string{"https://accounts.google.com", "accounts.google.com"}
 )
 
 // NewIdToken はJWTから構造体返す。セグメントが分割できるかのみチェックしている
@@ -143,5 +143,5 @@ func IssToIdProvider(iss string) (model.IdProvider, error) {
 		return model.Google, nil
 	}
 
-	return 0, ErrIssMismatch
+	return 0, errIssMismatch
 }
