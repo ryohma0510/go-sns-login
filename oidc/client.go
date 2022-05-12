@@ -2,6 +2,7 @@
 package oidc
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -12,7 +13,10 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
+
+const httpTimeoutSec = 10
 
 type oidcClient struct {
 	idProvider    string
@@ -84,7 +88,20 @@ func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType
 	values.Add("redirect_uri", redirectUrl)
 	values.Add("grant_type", grantType)
 
-	resp, err := http.PostForm(c.tokenEndpoint, values)
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), httpTimeoutSec*time.Second)
+	defer cancel()
+	reqWithCtx, err := http.NewRequestWithContext(
+		ctxWithTimeout,
+		http.MethodPost,
+		c.tokenEndpoint,
+		strings.NewReader(values.Encode()),
+	)
+	if err != nil {
+		return tokenResponse{}, fmt.Errorf("failed to create request of POST token endpoint: %w", err)
+	}
+	reqWithCtx.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(reqWithCtx)
 	if err != nil {
 		return tokenResponse{}, fmt.Errorf("failed to POST token endpoint: %w", err)
 	}

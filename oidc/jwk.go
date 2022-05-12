@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -12,6 +13,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type jwks struct {
@@ -66,10 +68,19 @@ func (token idToken) getJwk(jwksUrl string) (jwk, error) {
 		return jwk{}, fmt.Errorf("failed to parse jwks url: %w", err)
 	}
 
-	resp, err := http.Get(parsedUrl.String())
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), httpTimeoutSec*time.Second)
+	defer cancel()
+	reqWithCtx, err := http.NewRequestWithContext(ctxWithTimeout, http.MethodGet, parsedUrl.String(), nil)
+	if err != nil {
+		return jwk{}, fmt.Errorf("failed to create request of GET JWKs endpoint: %w", err)
+	}
+
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(reqWithCtx)
 	if err != nil {
 		return jwk{}, fmt.Errorf("failed to GET JWKs endpoint: %w", err)
 	}
+
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
@@ -77,6 +88,7 @@ func (token idToken) getJwk(jwksUrl string) (jwk, error) {
 		}
 	}(resp.Body)
 	byteArray, _ := ioutil.ReadAll(resp.Body)
+
 	keys := &jwks{}
 	if err := json.Unmarshal(byteArray, keys); err != nil {
 		return jwk{}, fmt.Errorf("failed to unmarshal JWKs response: %w", err)
