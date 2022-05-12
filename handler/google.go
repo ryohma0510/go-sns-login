@@ -21,6 +21,7 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	state, err := oidc.RandomState()
 	if err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 	cookie := http.Cookie{Name: "state", Value: state}
@@ -38,7 +39,7 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 		),
 		state,
 	)
-	http.Redirect(w, r, redirectUrl, 301)
+	http.Redirect(w, r, redirectUrl, http.StatusMovedPermanently)
 }
 
 func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db *gorm.DB) {
@@ -48,12 +49,14 @@ func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db 
 	cookieState, err := r.Cookie("state")
 	if err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 	queryState := r.URL.Query().Get("state")
 	if queryState != cookieState.Value {
 		err = fmt.Errorf("state parameter does not match for query: %s, cookie: %s", queryState, cookieState)
 		l.Logger.Error().Err(err)
+
 		return
 	}
 
@@ -71,6 +74,7 @@ func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db 
 	)
 	if err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 
@@ -78,10 +82,12 @@ func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db 
 	idToken, err := oidc.NewIdToken(tokenResp.IdToken)
 	if err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 	if err := idToken.ValidateSignature(client.JwksEndpoint); err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 
@@ -89,21 +95,25 @@ func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db 
 	bytePayload, err := jwt.DecodeSegment(idToken.RawPayload)
 	if err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 	payload := &oidc.GoogleIdTokenPayload{}
 	if err := json.Unmarshal(bytePayload, payload); err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 	if err = payload.IsValid(client.ClientId); err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 
 	idProvider, err := oidc.IssToIdProvider(payload.Iss)
 	if err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 	user := &model.User{Email: payload.Email, Sub: payload.Sub, IdProvider: idProvider}

@@ -32,7 +32,14 @@ type tokenResponse struct {
 	IdToken     string `json:"id_token"`
 }
 
-func newOidcClient(idProvider string, clientId string, clientSecret clientSecret, authEndpoint string, tokenEndpoint string, jwksEndpoint string) *oidcClient {
+func newOidcClient(
+	idProvider string,
+	clientId string,
+	clientSecret clientSecret,
+	authEndpoint string,
+	tokenEndpoint string,
+	jwksEndpoint string,
+) *oidcClient {
 	return &oidcClient{
 		idProvider:    idProvider,
 		ClientId:      clientId,
@@ -81,8 +88,8 @@ func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType
 	if err != nil {
 		return tokenResponse{}, err
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
+	defer func(body io.ReadCloser) {
+		err := body.Close()
 		if err != nil {
 			panic(err)
 		}
@@ -102,7 +109,8 @@ func RandomState() (string, error) {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 	// 乱数を生成
-	b := make([]byte, 10)
+	const strLength = 10
+	b := make([]byte, strLength)
 	if _, err := rand.Read(b); err != nil {
 		return "", errors.New("unexpected error")
 	}
@@ -113,5 +121,6 @@ func RandomState() (string, error) {
 		// index が letters の長さに収まるように調整
 		result += string(letters[int(v)%len(letters)])
 	}
+
 	return result, nil
 }

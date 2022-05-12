@@ -10,11 +10,15 @@ type Logger struct {
 }
 
 func New(isDebug bool) *Logger {
-	logLevel := zerolog.InfoLevel
+	var logLevel zerolog.Level
 	if isDebug {
 		logLevel = zerolog.DebugLevel
+	} else {
+		logLevel = zerolog.InfoLevel
 	}
+
 	zerolog.SetGlobalLevel(logLevel)
 	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
+
 	return &Logger{Logger: &logger}
 }

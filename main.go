@@ -11,6 +11,7 @@ import (
 	"sns-login/handler"
 	"sns-login/logger"
 	"sns-login/model"
+	"time"
 )
 
 func main() {
@@ -22,10 +23,12 @@ func main() {
 	db, err := gorm.Open(sqlite.Open("./database.db"), &gorm.Config{})
 	if err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 	if err := initDb(db); err != nil {
 		l.Logger.Error().Err(err)
+
 		return
 	}
 
@@ -49,9 +52,7 @@ func main() {
 
 // client_idは知られても問題ないが、client_secretは秘匿する必要がある
 func loadEnv() error {
-	err := godotenv.Load(".env")
-
-	if err != nil {
+	if err := godotenv.Load(".env"); err != nil {
 		return err
 	}
 
@@ -59,7 +60,18 @@ func loadEnv() error {
 }
 
 func initDb(db *gorm.DB) error {
-	if err := db.AutoMigrate(&model.User{}); err != nil {
+	if err := db.AutoMigrate(&model.User{
+		Model: gorm.Model{
+			ID:        0,
+			CreatedAt: time.Time{},
+			UpdatedAt: time.Time{},
+			DeletedAt: gorm.DeletedAt{},
+		},
+		Id:         0,
+		Email:      "",
+		Sub:        "",
+		IdProvider: 0,
+	}); err != nil {
 		return err
 	}
 

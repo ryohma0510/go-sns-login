@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
+	"net/url"
 	"sns-login/model"
 	"strings"
 
@@ -57,8 +58,9 @@ var (
 
 // NewIdToken はJWTから構造体返す。セグメントが分割できるかのみチェックしている
 func NewIdToken(rawToken string) (*idToken, error) {
+	const jwtSegNum = 3
 	segments := strings.Split(rawToken, ".")
-	if len(segments) != 3 {
+	if len(segments) != jwtSegNum {
 		return nil, errors.New("invalid jwt")
 	}
 	idToken := &idToken{
@@ -82,7 +84,12 @@ func NewIdToken(rawToken string) (*idToken, error) {
 }
 
 func (token idToken) ValidateSignature(jwksUrl string) error {
-	resp, err := http.Get(jwksUrl)
+	parsedUrl, err := url.Parse(jwksUrl)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Get(parsedUrl.String())
 	if err != nil {
 		return err
 	}
@@ -114,9 +121,11 @@ func (token idToken) ValidateSignature(jwksUrl string) error {
 	if err != nil {
 		return err
 	}
+
+	const standardExponent = 65537
 	pubKey := &rsa.PublicKey{
 		N: new(big.Int).SetBytes(byteN),
-		E: 65537, // TODO: key.E -> "AQAB"から導きたい
+		E: standardExponent, // TODO: key.E -> "AQAB"から導きたい
 	}
 
 	headerAndPayload := fmt.Sprintf("%s.%s", token.rawHeader, token.RawPayload)
