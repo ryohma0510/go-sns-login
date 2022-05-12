@@ -52,7 +52,7 @@ func main() {
 // client_idは知られても問題ないが、client_secretは秘匿する必要がある
 func loadEnv() error {
 	if err := godotenv.Load(".env"); err != nil {
-		return err
+		return fmt.Errorf("failed to load env vars: %w", err)
 	}
 
 	return nil
@@ -60,7 +60,7 @@ func loadEnv() error {
 
 func initDb(db *gorm.DB) error {
 	if err := db.AutoMigrate(&model.User{}); err != nil {
-		return err
+		return fmt.Errorf("failed to migrate: %w", err)
 	}
 
 	return nil

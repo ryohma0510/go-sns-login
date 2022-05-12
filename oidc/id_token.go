@@ -86,12 +86,12 @@ func NewIdToken(rawToken string) (*idToken, error) {
 func (token idToken) ValidateSignature(jwksUrl string) error {
 	parsedUrl, err := url.Parse(jwksUrl)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse jwks url: %w", err)
 	}
 
 	resp, err := http.Get(parsedUrl.String())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to GET JWKs endpoint: %w", err)
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -102,7 +102,7 @@ func (token idToken) ValidateSignature(jwksUrl string) error {
 	byteArray, _ := ioutil.ReadAll(resp.Body)
 	keys := &jwks{}
 	if err := json.Unmarshal(byteArray, keys); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal JWKs response: %w", err)
 	}
 
 	var key jwk
@@ -119,7 +119,7 @@ func (token idToken) ValidateSignature(jwksUrl string) error {
 
 	byteN, err := base64.RawURLEncoding.DecodeString(key.N)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode base64 modulus: %w", err)
 	}
 
 	const standardExponent = 65537
@@ -134,11 +134,11 @@ func (token idToken) ValidateSignature(jwksUrl string) error {
 
 	decSignature, err := base64.RawURLEncoding.DecodeString(token.rawSignature)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to base64 decode id_token signature: %w", err)
 	}
 
 	if err := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, sha.Sum(nil), decSignature); err != nil {
-		return err
+		return fmt.Errorf("failed to verify id_token signature: %w", err)
 	}
 
 	return nil

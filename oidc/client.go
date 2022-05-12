@@ -86,7 +86,7 @@ func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType
 
 	resp, err := http.PostForm(c.tokenEndpoint, values)
 	if err != nil {
-		return tokenResponse{}, err
+		return tokenResponse{}, fmt.Errorf("failed to POST token endpoint: %w", err)
 	}
 	defer func(body io.ReadCloser) {
 		err := body.Close()
@@ -98,7 +98,7 @@ func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType
 
 	tokenResp := &tokenResponse{}
 	if err := json.Unmarshal(bRespBody, tokenResp); err != nil {
-		return tokenResponse{}, err
+		return tokenResponse{}, fmt.Errorf("failed to unmarshal token response: %w", err)
 	}
 
 	return *tokenResp, nil
