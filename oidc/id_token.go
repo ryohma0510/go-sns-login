@@ -23,6 +23,7 @@ var (
 	errIssMismatch    = errors.New("id_token issuer invalid")
 	errAudMismatch    = errors.New("id_token audience mismatch")
 	errIdTokenExpired = errors.New("id_token expired")
+	errJwkNotFound    = errors.New("key not found on JWKs endpoint")
 )
 
 type idToken struct {
@@ -84,37 +85,9 @@ func NewIdToken(rawToken string) (*idToken, error) {
 }
 
 func (token idToken) ValidateSignature(jwksUrl string) error {
-	parsedUrl, err := url.Parse(jwksUrl)
+	key, err := token.getJwk(jwksUrl)
 	if err != nil {
-		return fmt.Errorf("failed to parse jwks url: %w", err)
-	}
-
-	resp, err := http.Get(parsedUrl.String())
-	if err != nil {
-		return fmt.Errorf("failed to GET JWKs endpoint: %w", err)
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(resp.Body)
-	byteArray, _ := ioutil.ReadAll(resp.Body)
-	keys := &jwks{}
-	if err := json.Unmarshal(byteArray, keys); err != nil {
-		return fmt.Errorf("failed to unmarshal JWKs response: %w", err)
-	}
-
-	var key jwk
-	var isFound bool
-	for _, v := range keys.Keys {
-		if token.header.Kid == v.Kid {
-			key = v
-			isFound = true
-		}
-	}
-	if !isFound {
-		return errors.New("JWK not found")
+		return err
 	}
 
 	byteN, err := base64.RawURLEncoding.DecodeString(key.N)
@@ -142,6 +115,43 @@ func (token idToken) ValidateSignature(jwksUrl string) error {
 	}
 
 	return nil
+}
+
+func (token idToken) getJwk(jwksUrl string) (jwk, error) {
+	parsedUrl, err := url.Parse(jwksUrl)
+	if err != nil {
+		return jwk{}, fmt.Errorf("failed to parse jwks url: %w", err)
+	}
+
+	resp, err := http.Get(parsedUrl.String())
+	if err != nil {
+		return jwk{}, fmt.Errorf("failed to GET JWKs endpoint: %w", err)
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(resp.Body)
+	byteArray, _ := ioutil.ReadAll(resp.Body)
+	keys := &jwks{}
+	if err := json.Unmarshal(byteArray, keys); err != nil {
+		return jwk{}, fmt.Errorf("failed to unmarshal JWKs response: %w", err)
+	}
+
+	var key jwk
+	var isFound bool
+	for _, v := range keys.Keys {
+		if token.header.Kid == v.Kid {
+			key = v
+			isFound = true
+		}
+	}
+	if !isFound {
+		return jwk{}, errJwkNotFound
+	}
+
+	return key, nil
 }
 
 func IssToIdProvider(iss string) (model.IdProvider, error) {

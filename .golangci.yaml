@@ -1,6 +1,6 @@
 linters:
   enable:
-#    - cyclop
+    - cyclop
     - dupl
     - durationcheck
     - errorlint
