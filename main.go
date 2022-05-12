@@ -11,7 +11,6 @@ import (
 	"sns-login/handler"
 	"sns-login/logger"
 	"sns-login/model"
-	"time"
 )
 
 func main() {
@@ -60,18 +59,7 @@ func loadEnv() error {
 }
 
 func initDb(db *gorm.DB) error {
-	if err := db.AutoMigrate(&model.User{
-		Model: gorm.Model{
-			ID:        0,
-			CreatedAt: time.Time{},
-			UpdatedAt: time.Time{},
-			DeletedAt: gorm.DeletedAt{},
-		},
-		Id:         0,
-		Email:      "",
-		Sub:        "",
-		IdProvider: 0,
-	}); err != nil {
+	if err := db.AutoMigrate(&model.User{}); err != nil {
 		return err
 	}
 
