@@ -23,15 +23,15 @@ func TestNewIdToken(t *testing.T) {
   "kid": "8462a71da4f6d611fc0fecf0fc4ba9c37d65e6cd",
   "typ": "JWT"
 }`,
-			"dummy",
-			"dummy",
+			"{}",
+			"{}",
 		},
 		{
 			"invalid header",
 			false,
 			"invalid header",
-			"dummy",
-			"dummy",
+			"{}",
+			"{}",
 		},
 	}
 
@@ -42,7 +42,7 @@ func TestNewIdToken(t *testing.T) {
 
 		b64Token := strings.Join([]string{b64Header, b64Payload, b64Sig}, ".")
 
-		_, err := NewIdToken(b64Token)
+		_, err := NewIdToken(b64Token, Google)
 
 		if pattern.isExpectValid {
 			assert.Nil(t, err)

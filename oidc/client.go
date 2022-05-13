@@ -19,7 +19,7 @@ import (
 const httpTimeoutSec = 10
 
 type oidcClient struct {
-	idProvider    string
+	IdProvider
 	ClientId      string
 	clientSecret  clientSecret
 	authEndpoint  string
@@ -37,7 +37,7 @@ type tokenResponse struct {
 }
 
 func newOidcClient(
-	idProvider string,
+	idProvider IdProvider,
 	clientId string,
 	clientSecret clientSecret,
 	authEndpoint string,
@@ -45,7 +45,7 @@ func newOidcClient(
 	jwksEndpoint string,
 ) *oidcClient {
 	return &oidcClient{
-		idProvider:    idProvider,
+		IdProvider:    idProvider,
 		ClientId:      clientId,
 		clientSecret:  clientSecret,
 		authEndpoint:  authEndpoint,
@@ -57,7 +57,7 @@ func newOidcClient(
 // NewGoogleOidcClient はGoogleのクライアントを返す
 func NewGoogleOidcClient() *oidcClient {
 	return newOidcClient(
-		"google",
+		Google,
 		os.Getenv("GOOGLE_CLIENT_ID"),
 		clientSecret(os.Getenv("GOOGLE_CLIENT_SECRET")),
 		"https://accounts.google.com/o/oauth2/v2/auth",

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,7 +8,6 @@ import (
 	"sns-login/model"
 	"sns-login/oidc"
 
-	"github.com/dgrijalva/jwt-go"
 	"gorm.io/gorm"
 )
 
@@ -79,44 +77,30 @@ func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db 
 	}
 
 	// JWKsエンドポイントから公開鍵を取得しid_token(JWT)の署名を検証。改竄されていないことを確認する
-	idToken, err := oidc.NewIdToken(tokenResp.IdToken)
+	idToken, err := oidc.NewIdToken(tokenResp.IdToken, oidc.Google)
 	if err != nil {
 		l.Logger.Error().Err(err)
 
 		return
 	}
-	if err := idToken.ValidateSignature(client.JwksEndpoint); err != nil {
+
+	if err = idToken.Validate(client.JwksEndpoint, client.ClientId); err != nil {
 		l.Logger.Error().Err(err)
 
 		return
 	}
 
-	// id_tokenのpayload部分をチェックし、期限切れなどしていないか確認する
-	bytePayload, err := jwt.DecodeSegment(idToken.RawPayload)
+	email, err := idToken.Payload.GetEmail()
 	if err != nil {
 		l.Logger.Error().Err(err)
 
 		return
 	}
-	payload := &oidc.GoogleIdTokenPayload{}
-	if err := json.Unmarshal(bytePayload, payload); err != nil {
-		l.Logger.Error().Err(err)
-
-		return
+	user := &model.User{
+		Email:      email,
+		Sub:        idToken.Payload.GetSub(),
+		IdProvider: model.Google,
 	}
-	if err = payload.IsValid(client.ClientId); err != nil {
-		l.Logger.Error().Err(err)
-
-		return
-	}
-
-	idProvider, err := oidc.IssToIdProvider(payload.Iss)
-	if err != nil {
-		l.Logger.Error().Err(err)
-
-		return
-	}
-	user := &model.User{Email: payload.Email, Sub: payload.Sub, IdProvider: idProvider}
 	db.Create(user)
 	l.Logger.Info().Msg("success to create user")
 }

@@ -53,13 +53,13 @@ func TestGoogleIdTokenPayload_IsValid(t *testing.T) {
 	}
 
 	for _, pattern := range patterns {
-		payload := GoogleIdTokenPayload{
+		payload := googleIdTokenPayload{
 			Iss: pattern.iss,
 			Aud: pattern.aud,
 			Exp: pattern.exp,
 		}
 
-		err := payload.IsValid(pattern.clientId)
+		err := payload.validate(pattern.clientId)
 		actual := err == nil
 
 		assert.Equal(t, pattern.expected, actual)

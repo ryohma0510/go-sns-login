@@ -29,7 +29,7 @@ type jwk struct {
 	Alg string `json:"alg"`
 }
 
-func (token idToken) ValidateSignature(jwksUrl string) error {
+func (token idToken) validateSignature(jwksUrl string) error {
 	key, err := token.getJwk(jwksUrl)
 	if err != nil {
 		return err

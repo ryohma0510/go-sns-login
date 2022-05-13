@@ -3,7 +3,7 @@ package oidc
 import (
 	"encoding/json"
 	"errors"
-	"sns-login/model"
+	"fmt"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
@@ -17,11 +17,22 @@ var (
 )
 
 type idToken struct {
+	IdProvider
 	rawToken     string
 	rawHeader    string
 	RawPayload   string
 	rawSignature string
-	header       header
+	header
+	Payload idTokenPayload
+}
+
+type idTokenPayload interface {
+	validateIss() error
+	validateAud(clientId string) error
+	validateExp() error
+	validate(clientId string) error
+	GetSub() string
+	GetEmail() (string, error)
 }
 
 type header struct {
@@ -34,14 +45,15 @@ var (
 	googleIssuers = [2]string{"https://accounts.google.com", "accounts.google.com"}
 )
 
-// NewIdToken はJWTから構造体返す。セグメントが分割できるかのみチェックしている
-func NewIdToken(rawToken string) (*idToken, error) {
+// NewIdToken は生のJWTからheaderとpayloadを焼き直した構造体返す。
+func NewIdToken(rawToken string, provider IdProvider) (*idToken, error) {
 	const jwtSegNum = 3
 	segments := strings.Split(rawToken, ".")
 	if len(segments) != jwtSegNum {
 		return nil, errors.New("invalid jwt")
 	}
 	idToken := &idToken{
+		IdProvider:   provider,
 		rawToken:     rawToken,
 		rawHeader:    segments[0],
 		RawPayload:   segments[1],
@@ -58,16 +70,42 @@ func NewIdToken(rawToken string) (*idToken, error) {
 	}
 	idToken.header = *header
 
+	// payloadのセット
+	if err := idToken.setPayload(); err != nil {
+		return nil, err
+	}
+
 	return idToken, nil
 }
 
-func IssToIdProvider(iss string) (model.IdProvider, error) {
-	googleIdTokenPayload := GoogleIdTokenPayload{
-		Iss: iss,
-	}
-	if err := googleIdTokenPayload.isValidIss(); err == nil {
-		return model.Google, nil
+// setPayload は生のpayloadを構造体に焼き直してセットする
+func (token *idToken) setPayload() error {
+	if token.IdProvider == Google {
+		bytePayload, err := jwt.DecodeSegment(token.RawPayload)
+		if err != nil {
+			return fmt.Errorf("failed to decode payload JWT segment: %w", err)
+		}
+		payload := &googleIdTokenPayload{}
+		if err := json.Unmarshal(bytePayload, payload); err != nil {
+			return fmt.Errorf("failed to unmarshal id_token payload: %w", err)
+		}
+		token.Payload = payload
+
+		return nil
 	}
 
-	return 0, errIssMismatch
+	return errIssMismatch
+}
+
+// Validate はJWTの署名とpayloadの中身を検証する
+func (token idToken) Validate(jwksUrl string, clientId string) error {
+	if err := token.validateSignature(jwksUrl); err != nil {
+		return err
+	}
+
+	if err := token.Payload.validate(clientId); err != nil {
+		return fmt.Errorf("failed to validate id_token payload: %w", err)
+	}
+
+	return nil
 }

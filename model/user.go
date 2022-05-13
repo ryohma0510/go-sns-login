@@ -5,10 +5,10 @@ import (
 )
 
 //go:generate stringer -type=IdProvider
-type IdProvider int
+type idProvider int
 
 const (
-	Google IdProvider = iota + 1
+	Google idProvider = iota + 1
 )
 
 type User struct {
@@ -16,5 +16,5 @@ type User struct {
 	Id         int64
 	Email      string
 	Sub        string
-	IdProvider IdProvider
+	IdProvider idProvider
 }

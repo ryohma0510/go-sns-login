@@ -15,9 +15,9 @@ const _IdProvider_name = "Google"
 
 var _IdProvider_index = [...]uint8{0, 6}
 
-func (i IdProvider) String() string {
+func (i idProvider) String() string {
 	i -= 1
-	if i < 0 || i >= IdProvider(len(_IdProvider_index)-1) {
+	if i < 0 || i >= idProvider(len(_IdProvider_index)-1) {
 		return "IdProvider(" + strconv.FormatInt(int64(i+1), 10) + ")"
 	}
 	return _IdProvider_name[_IdProvider_index[i]:_IdProvider_index[i+1]]
