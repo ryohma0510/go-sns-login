@@ -32,6 +32,7 @@ type idTokenPayload interface {
 	validateExp() error
 	validate(clientId string) error
 	GetSub() string
+	// GetEmail はGoogleでのみ動作する
 	GetEmail() (string, error)
 }
 
@@ -40,10 +41,6 @@ type header struct {
 	Kid string `json:"kid"`
 	Typ string `json:"typ"`
 }
-
-var (
-	googleIssuers = [2]string{"https://accounts.google.com", "accounts.google.com"}
-)
 
 // NewIdToken は生のJWTからheaderとpayloadを焼き直した構造体返す。
 func NewIdToken(rawToken string, provider IdProvider) (*idToken, error) {

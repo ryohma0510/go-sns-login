@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+var (
+	// refs: https://developers.google.com/identity/protocols/oauth2/openid-connect#validatinganidtoken
+	googleIssuers = [2]string{"https://accounts.google.com", "accounts.google.com"}
+)
+
 // googleIdTokenPayload はトークンエンドポイントのレスポンスの中のid_tokenのpayloadをunmarshalするための構造体
 type googleIdTokenPayload struct {
 	Iss string `json:"iss"`
@@ -16,6 +21,14 @@ type googleIdTokenPayload struct {
 }
 
 // Validate はpayloadの中身を検証
+//
+// - Issuer
+//
+// - Audience
+//
+// - Expiration
+//
+// を確認する
 func (payload googleIdTokenPayload) validate(clientId string) error {
 	if err := payload.validateIss(); err != nil {
 		return err
@@ -67,6 +80,9 @@ func (payload googleIdTokenPayload) GetSub() string {
 	return payload.Sub
 }
 
+// GetEmail はid_tokenからメールアドレスを取得する
+//
+// Googleの場合はid_tokenにメールアドレスが入っているが、IdPによっては入っていないので、UserInfo Endpointから取得する必要がある
 func (payload googleIdTokenPayload) GetEmail() (string, error) {
 	return payload.Email, nil
 }
