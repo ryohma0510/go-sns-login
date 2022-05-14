@@ -11,9 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
+func AuthYahooSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	l := logger.New(false)
-	client := oidc.NewGoogleOidcClient()
+	client := oidc.NewYahooOidcClient()
 
 	// CSRFを防ぐためにstateを保存し、後の処理でstateが一致するか確認する
 	state, err := oidc.RandomState()
@@ -25,12 +25,12 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{Name: "state", Value: state}
 	http.SetCookie(w, &cookie)
 
-	// ユーザーをGoogleのログイン画面にリダイレクト
+	// ユーザーをYahooのログイン画面にリダイレクト
 	redirectUrl := client.AuthUrl(
 		"code",
 		[]string{"openid", "email", "profile"},
 		fmt.Sprintf(
-			"%s://%s:%s/auth/google/sign_up/callback",
+			"%s://%s:%s/auth/yahoo/sign_up/callback",
 			os.Getenv("SERVER_PROTO"),
 			os.Getenv("SERVER_HOST"),
 			os.Getenv("SERVER_PORT"),
@@ -40,7 +40,7 @@ func AuthGoogleSignUpHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectUrl, http.StatusMovedPermanently)
 }
 
-func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db *gorm.DB) {
+func AuthYahooSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	l := logger.New(false)
 
 	// 認可リクエストを送る前に設定したstateと一致するかを確認してCSRF攻撃を防ぐ
@@ -59,11 +59,11 @@ func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db 
 	}
 
 	// 認可コードを取り出しトークンエンドポイントに投げることでid_tokenを取得できる
-	client := oidc.NewGoogleOidcClient()
+	client := oidc.NewYahooOidcClient()
 	tokenResp, err := client.PostTokenEndpoint(
 		r.URL.Query().Get("code"),
 		fmt.Sprintf(
-			"%s://%s:%s/auth/google/sign_up/callback",
+			"%s://%s:%s/auth/yahoo/sign_up/callback",
 			os.Getenv("SERVER_PROTO"),
 			os.Getenv("SERVER_HOST"),
 			os.Getenv("SERVER_PORT"),
@@ -77,7 +77,7 @@ func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db 
 	}
 
 	// JWKsエンドポイントから公開鍵を取得しid_token(JWT)の署名を検証。改竄されていないことを確認する
-	idToken, err := oidc.NewIdToken(tokenResp.IdToken, oidc.Google)
+	idToken, err := oidc.NewIdToken(tokenResp.IdToken, oidc.Yahoo)
 	if err != nil {
 		l.Logger.Error().Err(err)
 
@@ -89,16 +89,17 @@ func AuthGoogleSignUpCallbackHandler(_ http.ResponseWriter, r *http.Request, db 
 		return
 	}
 
-	email, err := idToken.Payload.GetEmail()
+	userInfoResp, err := client.PostUserInfoEndpoint(tokenResp.AccessToken)
 	if err != nil {
 		l.Logger.Error().Err(err)
 
 		return
 	}
+
 	user := &model.User{
-		Email:      email,
+		Email:      userInfoResp.Email,
 		Sub:        idToken.Payload.GetSub(),
-		IdProvider: model.Google,
+		IdProvider: model.Yahoo,
 	}
 	db.Create(user)
 	l.Logger.Info().Msg("success to create user")

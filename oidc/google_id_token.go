@@ -46,18 +46,13 @@ func (payload googleIdTokenPayload) validate(clientId string) error {
 }
 
 func (payload googleIdTokenPayload) validateIss() error {
-	isValid := false
 	for _, v := range googleIssuers {
 		if payload.Iss == v {
-			isValid = true
+			return nil
 		}
 	}
 
-	if isValid {
-		return nil
-	} else {
-		return errIssMismatch
-	}
+	return errIssMismatch
 }
 
 func (payload googleIdTokenPayload) validateAud(clientId string) error {

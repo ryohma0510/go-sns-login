@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -29,13 +28,26 @@ type jwk struct {
 	Alg string `json:"alg"`
 }
 
-func (token idToken) validateSignature(jwksUrl string) error {
-	key, err := token.getJwk(jwksUrl)
+func (c client) ValidateIdToken(token IdToken) error {
+	// validate sig
+	jwk, err := c.getJwk(token)
 	if err != nil {
 		return err
 	}
+	if err := token.validateSignature(jwk); err != nil {
+		return err
+	}
 
-	byteN, err := base64.RawURLEncoding.DecodeString(key.N)
+	// validate payload
+	if err := token.Payload.validate(c.ClientId); err != nil {
+		return fmt.Errorf("failed to validate id_token payload: %w", err)
+	}
+
+	return nil
+}
+
+func (token IdToken) validateSignature(jwk jwk) error {
+	byteN, err := base64.RawURLEncoding.DecodeString(jwk.N)
 	if err != nil {
 		return fmt.Errorf("failed to decode base64 modulus: %w", err)
 	}
@@ -43,7 +55,7 @@ func (token idToken) validateSignature(jwksUrl string) error {
 	const standardExponent = 65537
 	pubKey := &rsa.PublicKey{
 		N: new(big.Int).SetBytes(byteN),
-		E: standardExponent, // TODO: key.E -> "AQAB"から導きたい
+		E: standardExponent, // TODO: jwk.E -> "AQAB"から導きたい
 	}
 
 	headerAndPayload := fmt.Sprintf("%s.%s", token.rawHeader, token.RawPayload)
@@ -62,15 +74,11 @@ func (token idToken) validateSignature(jwksUrl string) error {
 	return nil
 }
 
-func (token idToken) getJwk(jwksUrl string) (jwk, error) {
-	parsedUrl, err := url.Parse(jwksUrl)
-	if err != nil {
-		return jwk{}, fmt.Errorf("failed to parse jwks url: %w", err)
-	}
-
+// これおかしく思えてきたので修正する
+func (c client) getJwk(token IdToken) (jwk, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), httpTimeoutSec*time.Second)
 	defer cancel()
-	reqWithCtx, err := http.NewRequestWithContext(ctxWithTimeout, http.MethodGet, parsedUrl.String(), nil)
+	reqWithCtx, err := http.NewRequestWithContext(ctxWithTimeout, http.MethodGet, c.JwksEndpoint, nil)
 	if err != nil {
 		return jwk{}, fmt.Errorf("failed to create request of GET JWKs endpoint: %w", err)
 	}

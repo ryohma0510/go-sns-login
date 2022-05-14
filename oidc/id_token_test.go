@@ -14,6 +14,7 @@ func TestNewIdToken(t *testing.T) {
 		header        string
 		payload       string
 		signature     string
+		provider      IdProvider
 	}{
 		{
 			"valid",
@@ -25,6 +26,19 @@ func TestNewIdToken(t *testing.T) {
 }`,
 			"{}",
 			"{}",
+			Google,
+		},
+		{
+			"valid",
+			true,
+			`{
+  "alg": "RS256",
+  "kid": "8462a71da4f6d611fc0fecf0fc4ba9c37d65e6cd",
+  "typ": "JWT"
+}`,
+			"{}",
+			"{}",
+			Yahoo,
 		},
 		{
 			"invalid header",
@@ -32,6 +46,7 @@ func TestNewIdToken(t *testing.T) {
 			"invalid header",
 			"{}",
 			"{}",
+			Google,
 		},
 	}
 
@@ -42,7 +57,7 @@ func TestNewIdToken(t *testing.T) {
 
 		b64Token := strings.Join([]string{b64Header, b64Payload, b64Sig}, ".")
 
-		_, err := NewIdToken(b64Token, Google)
+		_, err := NewIdToken(b64Token, pattern.provider)
 
 		if pattern.isExpectValid {
 			assert.Nil(t, err)

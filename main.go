@@ -40,6 +40,11 @@ func main() {
 		handler.AuthGoogleSignUpCallbackHandler(w, r, db)
 	}).Methods("GET")
 
+	router.HandleFunc("/auth/yahoo/sign_up", handler.AuthYahooSignUpHandler)
+	router.HandleFunc("/auth/yahoo/sign_up/callback", func(w http.ResponseWriter, r *http.Request) {
+		handler.AuthYahooSignUpCallbackHandler(w, r, db)
+	}).Methods("GET")
+
 	server := http.Server{
 		Handler: router,
 		Addr:    fmt.Sprintf("%s:%s", os.Getenv("SERVER_HOST"), os.Getenv("SERVER_PORT")),

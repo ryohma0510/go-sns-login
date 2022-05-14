@@ -9,6 +9,7 @@ type idProvider int
 
 const (
 	Google idProvider = iota + 1
+	Yahoo
 )
 
 type User struct {

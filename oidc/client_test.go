@@ -10,7 +10,7 @@ import (
 func TestOidcClient_AuthUrl(t *testing.T) {
 	patterns := []struct {
 		desc        string
-		client      *oidcClient
+		client      IClient
 		respType    string
 		scopes      []string
 		redirectUrl string
@@ -67,7 +67,7 @@ func TestOidcClient_PostTokenEndpoint(t *testing.T) {
 
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	httpmock.RegisterResponder("POST", client.tokenEndpoint,
+	httpmock.RegisterResponder("POST", "https://oauth2.googleapis.com/token",
 		httpmock.NewStringResponder(
 			200,
 			`{
@@ -91,6 +91,50 @@ func TestOidcClient_PostTokenEndpoint(t *testing.T) {
 	}
 
 	assert.Equal(t, expected, actual)
+}
+
+func TestClient_PostUserInfoEndpoint(t *testing.T) {
+	c := NewYahooOidcClient()
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder("POST", "https://userinfo.yahooapis.jp/yconnect/v2/attribute",
+		httpmock.NewStringResponder(
+			200,
+			` {
+   "sub": "qHbYdL0GOBOZRrjW1mB1Y6YqTjjlfaPo0-CRsbm9l511M8GoQM9G00xre",
+   "name": "山田太郎",
+   "given_name": "太郎",
+   "given_name#ja-Kana-JP": "タロウ",
+   "given_name#ja-Hani-JP": "太郎",
+   "family_name": "山田",
+   "family_name#ja-Kana-JP": "山田",
+   "family_name#ja-Hani-JP": "ヤマダ",
+   "gender": "male",
+   "locale": "ja-JP",
+   "email": "aaa@example.com",
+   "email_verified": true,
+   "address": {
+     "country": "jp",
+     "postal_code": "1680080"
+   },
+   "birthdate": "1996",
+   "zoneinfo": "Asia/Tokyo",
+   "nickname": "wtl********",
+   "picture": ""
+ }
+`,
+		),
+	)
+
+	actual, err := c.PostUserInfoEndpoint("")
+
+	assert.Nil(t, err)
+	assert.Equal(
+		t,
+		userInfoResponse{Email: "aaa@example.com"},
+		actual,
+	)
 }
 
 func TestRandomState(t *testing.T) {

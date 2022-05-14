@@ -18,13 +18,21 @@ import (
 
 const httpTimeoutSec = 10
 
-type oidcClient struct {
+type IClient interface {
+	AuthUrl(respType string, scopes []string, redirectUrl string, state string) string
+	PostTokenEndpoint(code string, redirectUrl string, grantType string) (tokenResponse, error)
+	PostUserInfoEndpoint(accessToken string) (userInfoResponse, error)
+	ValidateIdToken(token IdToken) error
+}
+
+type client struct {
 	IdProvider
-	ClientId      string
-	clientSecret  clientSecret
-	authEndpoint  string
-	tokenEndpoint string
-	JwksEndpoint  string
+	ClientId         string
+	clientSecret     clientSecret
+	authEndpoint     string
+	tokenEndpoint    string
+	JwksEndpoint     string
+	userInfoEndpoint string
 }
 
 // tokenResponse はトークンエンドポイントのレスポンスをunmarshalするため構造体
@@ -36,38 +44,36 @@ type tokenResponse struct {
 	IdToken     string `json:"id_token"`
 }
 
-func newOidcClient(
-	idProvider IdProvider,
-	clientId string,
-	clientSecret clientSecret,
-	authEndpoint string,
-	tokenEndpoint string,
-	jwksEndpoint string,
-) *oidcClient {
-	return &oidcClient{
-		IdProvider:    idProvider,
-		ClientId:      clientId,
-		clientSecret:  clientSecret,
-		authEndpoint:  authEndpoint,
-		tokenEndpoint: tokenEndpoint,
-		JwksEndpoint:  jwksEndpoint,
-	}
+type userInfoResponse struct {
+	Email string `json:"email"`
 }
 
 // NewGoogleOidcClient はGoogleのクライアントを返す
-func NewGoogleOidcClient() *oidcClient {
-	return newOidcClient(
-		Google,
-		os.Getenv("GOOGLE_CLIENT_ID"),
-		clientSecret(os.Getenv("GOOGLE_CLIENT_SECRET")),
-		"https://accounts.google.com/o/oauth2/v2/auth",
-		"https://oauth2.googleapis.com/token",
-		"https://www.googleapis.com/oauth2/v3/certs",
-	)
+func NewGoogleOidcClient() IClient {
+	return client{
+		IdProvider:    Google,
+		ClientId:      os.Getenv("GOOGLE_CLIENT_ID"),
+		clientSecret:  clientSecret(os.Getenv("GOOGLE_CLIENT_SECRET")),
+		authEndpoint:  "https://accounts.google.com/o/oauth2/v2/auth",
+		tokenEndpoint: "https://oauth2.googleapis.com/token",
+		JwksEndpoint:  "https://www.googleapis.com/oauth2/v3/certs",
+	}
+}
+
+func NewYahooOidcClient() IClient {
+	return client{
+		IdProvider:       Yahoo,
+		ClientId:         os.Getenv("YAHOO_CLIENT_ID"),
+		clientSecret:     clientSecret(os.Getenv("YAHOO_CLIENT_SECRET")),
+		authEndpoint:     "https://auth.login.yahoo.co.jp/yconnect/v2/authorization",
+		tokenEndpoint:    "https://auth.login.yahoo.co.jp/yconnect/v2/token",
+		JwksEndpoint:     "https://auth.login.yahoo.co.jp/yconnect/v2/jwks",
+		userInfoEndpoint: "https://userinfo.yahooapis.jp/yconnect/v2/attribute",
+	}
 }
 
 // AuthUrl は認可エンドポイントのURLを返す
-func (c oidcClient) AuthUrl(respType string, scopes []string, redirectUrl string, state string) string {
+func (c client) AuthUrl(respType string, scopes []string, redirectUrl string, state string) string {
 	return fmt.Sprintf(
 		"%s?client_id=%s&response_type=%s&scope=%s&redirect_uri=%s&state=%s",
 		c.authEndpoint,
@@ -80,7 +86,7 @@ func (c oidcClient) AuthUrl(respType string, scopes []string, redirectUrl string
 }
 
 // PostTokenEndpoint はトークンエンドポイントに認可コードを渡してトークンを得る
-func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType string) (tokenResponse, error) {
+func (c client) PostTokenEndpoint(code string, redirectUrl string, grantType string) (tokenResponse, error) {
 	values := url.Values{}
 	values.Add("code", code)
 	values.Add("client_id", c.ClientId)
@@ -119,6 +125,43 @@ func (c oidcClient) PostTokenEndpoint(code string, redirectUrl string, grantType
 	}
 
 	return *tokenResp, nil
+}
+
+func (c client) PostUserInfoEndpoint(accessToken string) (userInfoResponse, error) {
+	values := url.Values{}
+	values.Add("access_token", accessToken)
+
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), httpTimeoutSec*time.Second)
+	defer cancel()
+	reqWithCtx, err := http.NewRequestWithContext(
+		ctxWithTimeout,
+		http.MethodPost,
+		c.userInfoEndpoint,
+		strings.NewReader(values.Encode()),
+	)
+	if err != nil {
+		return userInfoResponse{}, fmt.Errorf("failed to create request of POST token endpoint: %w", err)
+	}
+	reqWithCtx.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(reqWithCtx)
+	if err != nil {
+		return userInfoResponse{}, fmt.Errorf("failed to POST user info endpoint: %w", err)
+	}
+	defer func(body io.ReadCloser) {
+		err := body.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(resp.Body)
+	bRespBody, _ := ioutil.ReadAll(resp.Body)
+
+	userInfoResp := &userInfoResponse{}
+	if err := json.Unmarshal(bRespBody, userInfoResp); err != nil {
+		return userInfoResponse{}, fmt.Errorf("failed to unmarshal user info response: %w", err)
+	}
+
+	return *userInfoResp, nil
 }
 
 // RandomState はCSRF攻撃の対策に使うためにランダムな文字列を返す。

@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-func TestGoogleIdTokenPayload_IsValid(t *testing.T) {
-	validClientId := os.Getenv("GOOGLE_CLIENT_ID") // TODO: ちゃんとしたい
+func TestYahooIdTokenPayload_IsValid(t *testing.T) {
+	validClientId := os.Getenv("YAHOO_CLIENT_ID") // TODO: ちゃんとしたい
 
 	patterns := []struct {
 		desc     string
@@ -22,7 +22,7 @@ func TestGoogleIdTokenPayload_IsValid(t *testing.T) {
 			"valid",
 			nil,
 			validClientId,
-			"https://accounts.google.com",
+			"https://auth.login.yahoo.co.jp/yconnect/v2",
 			validClientId,
 			time.Now().AddDate(0, 0, 1).Unix(),
 		},
@@ -30,7 +30,7 @@ func TestGoogleIdTokenPayload_IsValid(t *testing.T) {
 			"invalid iss",
 			errIssMismatch,
 			validClientId,
-			"https://accounts.google.coms",
+			"https://accounts.yahoo.coms",
 			validClientId,
 			time.Now().AddDate(0, 0, 1).Unix(),
 		},
@@ -38,7 +38,7 @@ func TestGoogleIdTokenPayload_IsValid(t *testing.T) {
 			"invalid aud",
 			errAudMismatch,
 			validClientId,
-			"https://accounts.google.com",
+			"https://auth.login.yahoo.co.jp/yconnect/v2",
 			"invalid aud",
 			time.Now().AddDate(0, 0, 1).Unix(),
 		},
@@ -46,16 +46,16 @@ func TestGoogleIdTokenPayload_IsValid(t *testing.T) {
 			"invalid exp",
 			errIdTokenExpired,
 			validClientId,
-			"https://accounts.google.com",
+			"https://auth.login.yahoo.co.jp/yconnect/v2",
 			validClientId,
 			time.Now().AddDate(0, 0, -1).Unix(),
 		},
 	}
 
 	for _, pattern := range patterns {
-		payload := googleIdTokenPayload{
+		payload := yahooIdTokenPayload{
 			Iss: pattern.iss,
-			Aud: pattern.aud,
+			Aud: []string{pattern.aud},
 			Exp: pattern.exp,
 		}
 

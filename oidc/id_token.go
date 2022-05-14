@@ -16,24 +16,23 @@ var (
 	errJwkNotFound    = errors.New("key not found on JWKs endpoint")
 )
 
-type idToken struct {
+type IdToken struct {
 	IdProvider
 	rawToken     string
 	rawHeader    string
 	RawPayload   string
 	rawSignature string
 	header
-	Payload idTokenPayload
+	Payload iIdTokenPayload
 }
 
-type idTokenPayload interface {
+type iIdTokenPayload interface {
 	validateIss() error
 	validateAud(clientId string) error
 	validateExp() error
 	validate(clientId string) error
-	GetSub() string
-	// GetEmail はGoogleでのみ動作する
 	GetEmail() (string, error)
+	GetSub() string
 }
 
 type header struct {
@@ -43,13 +42,13 @@ type header struct {
 }
 
 // NewIdToken は生のJWTからheaderとpayloadを焼き直した構造体返す。
-func NewIdToken(rawToken string, provider IdProvider) (*idToken, error) {
+func NewIdToken(rawToken string, provider IdProvider) (IdToken, error) {
 	const jwtSegNum = 3
 	segments := strings.Split(rawToken, ".")
 	if len(segments) != jwtSegNum {
-		return nil, errors.New("invalid jwt")
+		return IdToken{}, errors.New("invalid jwt")
 	}
-	idToken := &idToken{
+	token := IdToken{
 		IdProvider:   provider,
 		rawToken:     rawToken,
 		rawHeader:    segments[0],
@@ -57,52 +56,45 @@ func NewIdToken(rawToken string, provider IdProvider) (*idToken, error) {
 		rawSignature: segments[2],
 	}
 
-	byteHeader, err := jwt.DecodeSegment(idToken.rawHeader)
+	byteHeader, err := jwt.DecodeSegment(token.rawHeader)
 	if err != nil {
-		return nil, errors.New("base64 decode header error")
+		return IdToken{}, errors.New("base64 decode header error")
 	}
 	header := &header{}
 	if err := json.Unmarshal(byteHeader, header); err != nil {
-		return nil, errors.New("json decode header error")
+		return IdToken{}, errors.New("json decode header error")
 	}
-	idToken.header = *header
+	token.header = *header
 
 	// payloadのセット
-	if err := idToken.setPayload(); err != nil {
-		return nil, err
+	if err := token.setPayload(); err != nil {
+		return IdToken{}, err
 	}
 
-	return idToken, nil
+	return token, nil
 }
 
 // setPayload は生のpayloadを構造体に焼き直してセットする
-func (token *idToken) setPayload() error {
-	if token.IdProvider == Google {
-		bytePayload, err := jwt.DecodeSegment(token.RawPayload)
-		if err != nil {
-			return fmt.Errorf("failed to decode payload JWT segment: %w", err)
-		}
-		payload := &googleIdTokenPayload{}
-		if err := json.Unmarshal(bytePayload, payload); err != nil {
-			return fmt.Errorf("failed to unmarshal id_token payload: %w", err)
-		}
-		token.Payload = payload
-
-		return nil
+func (token *IdToken) setPayload() error {
+	bytePayload, err := jwt.DecodeSegment(token.RawPayload)
+	if err != nil {
+		return fmt.Errorf("failed to decode payload JWT segment: %w", err)
 	}
 
-	return errIssMismatch
-}
-
-// Validate はJWTの署名とpayloadの中身を検証する
-func (token idToken) Validate(jwksUrl string, clientId string) error {
-	if err := token.validateSignature(jwksUrl); err != nil {
-		return err
+	var payload iIdTokenPayload
+	switch token.IdProvider {
+	case Google:
+		payload = &googleIdTokenPayload{}
+	case Yahoo:
+		payload = &yahooIdTokenPayload{}
+	default:
+		return errIssMismatch
 	}
 
-	if err := token.Payload.validate(clientId); err != nil {
-		return fmt.Errorf("failed to validate id_token payload: %w", err)
+	if err := json.Unmarshal(bytePayload, payload); err != nil {
+		return fmt.Errorf("failed to unmarshal id_token payload: %w", err)
 	}
+	token.Payload = payload
 
 	return nil
 }
